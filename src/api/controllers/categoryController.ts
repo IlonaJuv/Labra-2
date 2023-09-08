@@ -11,6 +11,7 @@ import CategoryModel from '../models/categoryModel';
 import DBMessageResponse from '../../interfaces/DBMessageResponse';
 import {Category} from '../../interfaces/Category';
 import {validationResult} from 'express-validator';
+import {UserLogin} from '../../interfaces/User';
 
 const categoryListGet = async (
   req: Request,
@@ -131,7 +132,7 @@ const categoryPut = async (
 
 const categoryDelete = async (
   req: Request<{id: string}, {}, {}>,
-  res: Response,
+  res: Response<{}, {user: UserLogin; role: string}>,
   next: NextFunction
 ) => {
   try {
@@ -145,7 +146,13 @@ const categoryDelete = async (
       next(new CustomError(messages, 400));
       return;
     }
-
+    /*
+    // esimerkki Jos haluaa jotakin vain adminil poistaa
+    if (res.locals.role !== 'admin') {
+      next(new CustomError('Unauthorized', 401));
+      return;
+    }
+    */
     const category = await CategoryModel.findByIdAndDelete(
       req.params.id
     ).select('-__v');

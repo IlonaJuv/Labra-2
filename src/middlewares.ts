@@ -1,7 +1,10 @@
+import jwt from 'jsonwebtoken';
 import {NextFunction, Request, Response} from 'express';
 import imageFromWikipedia from './functions/imageFromWikipedia';
 import ErrorResponse from './interfaces/ErrorResponse';
 import CustomError from './classes/CustomError';
+import {TokenUser, UserLogin} from './interfaces/User';
+import userModel from './api/models/userModel';
 
 const notFound = (req: Request, res: Response, next: NextFunction) => {
   const error = new CustomError(`🔍 - Not Found - ${req.originalUrl}`, 404);
@@ -38,4 +41,44 @@ const getWikiImage = async (
   }
 };
 
-export {notFound, errorHandler, getWikiImage};
+const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const bearer = req.headers.authorization;
+    if (!bearer) {
+      next(new CustomError('Unauthorized', 401));
+      return;
+    }
+    const token = bearer.split(' ')[1];
+    if (!token) {
+      next(new CustomError('Unauthorized', 401));
+      return;
+    }
+
+    const userFromToken = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as TokenUser;
+
+    //Selectillä
+    const user = (await userModel
+      .findById(userFromToken.id)
+      .select('-password, -role')) as UserLogin;
+
+    if (!user) {
+      next(new CustomError('Unauthorized', 401));
+      return;
+    }
+    //express locals
+    res.locals.user = user;
+    res.locals.role = userFromToken.role;
+  } catch (error) {
+    next(new CustomError('Unauthorized', 401));
+    return;
+  }
+};
+
+export {notFound, errorHandler, getWikiImage, authenticate};
